@@ -1,0 +1,85 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+
+local aimbotEnabled = false
+local FOV_RADIUS = 75
+
+local Drawing = Drawing or {}
+local fovCircle
+if Drawing then
+    fovCircle = Drawing.new("Circle")
+    fovCircle.Position = Vector2.new(Workspace.CurrentCamera.ViewportSize.X/2, Workspace.CurrentCamera.ViewportSize.Y/2)
+    fovCircle.Radius = FOV_RADIUS
+    fovCircle.Color = Color3.fromRGB(white)
+    fovCircle.Thickness = 2
+    fovCircle.Transparency = 0.5
+    fovCircle.Visible = true
+end
+
+local function isInFOV(targetHead)
+    local camera = Workspace.CurrentCamera
+    local screenPos, onScreen = camera:WorldToViewportPoint(targetHead.Position)
+    if not onScreen then return false end
+    local center = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
+    local distance = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+    return distance <= FOV_RADIUS
+end
+
+local function getClosestEnemy()
+    local closestEnemy = nil
+    local shortestDistance = math.huge
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Team ~= LocalPlayer.Team and player.Character and player.Character:FindFirstChild("Head") then
+            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            if player humanoid.Health > 0 then
+                local head = player.Character.Head
+                if player humanoid.Health < 0 then
+                    ignore player
+                end
+                if isInFOV(head) then
+                    local distance = (LocalPlayer.Character.Head.Position - head.Position).Magnitude
+                    if distance < shortestDistance then
+                        shortestDistance = distance
+                        closestEnemy = player
+                    end
+                end
+            end
+        end
+    end
+    return closestEnemy
+end
+
+local function aimAt(target)
+    if not target or not target.Character or not target.Character:FindFirstChild("Head") then return end
+    local camera = Workspace.CurrentCamera
+    camera.CFrame = CFrame.new(camera.CFrame.Position, target.Character.Head.Position)
+end
+
+UserInputService.InputBegan:Connect(function(input, processed)
+    if input.UserInputType == Enum.UserInputType.MouseButton2 and not processed then
+        aimbotEnabled = not aimbotEnabled
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if aimbotEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Head") then
+        local enemy = getClosestEnemy()
+        if enemy then
+            aimAt(enemy)
+        end
+    end
+    if fovCircle then
+        fovCircle.Position = Vector2.new(Workspace.CurrentCamera.ViewportSize.X/2, Workspace.CurrentCamera.ViewportSize.Y/2)
+        fovCircle.Visible = aimbotEnabled
+    end
+end)
+
+print("Aimbot script carregado. Pressione botão direito do mouse para ativar/desativar.")
+RunService.RenderStepped:Connect(function()
+    if aimbotEnabled then
+        print("Aimbot ativo!")
+    end
+end)
